@@ -123,6 +123,7 @@ export function validURL(str) {
   return !!pattern.test(str);
 }
 
+// 转成对象属性名，避免浏览器重复缓存
 // When the string is set as the object property name,
 // it will be attempted to be transformed into a constant version to avoid repeated caching by the browser
 export function internFunc(internalizeString) {
@@ -133,6 +134,13 @@ export function internFunc(internalizeString) {
   return Object.keys(temporaryOb)[0];
 }
 
+/**
+ * 执行代码
+ * @param code 代码
+ * @param params 入参
+ * @param context 上下文
+ * @param useStrict 使用严格模式
+ */
 export function evalWithEnv(
   code: string,
   params: Record<string, any>,
@@ -149,12 +157,24 @@ export function evalWithEnv(
   try {
     nativeWindow[randomValKey] = params;
     nativeWindow[contextKey] = context;
+    // evalInfo生成后的结果
+    // [
+    // ";(function(window,WebSocket,XMLHttpRequest,fetch,setTimeout,clearTimeout,setInterval,clearInterval,setImmediate,history,History,document,addEventListener,removeEventListener,MutationObserver,MouseEvent,localStorage,sessionStorage,__GARFISH_SANDBOX_ENV_VAR__){",
+    // "\n}).call(window.__garfish_exec_temporary_context__,window.__garfish__exec_temporary__.window,window.__garfish__exec_temporary__.WebSocket,window.__garfish__exec_temporary__.XMLHttpRequest,window.__garfish__exec_temporary__.fetch,window.__garfish__exec_temporary__.setTimeout,window.__garfish__exec_temporary__.clearTimeout,window.__garfish__exec_temporary__.setInterval,window.__garfish__exec_temporary__.clearInterval,window.__garfish__exec_temporary__.setImmediate,window.__garfish__exec_temporary__.history,window.__garfish__exec_temporary__.History,window.__garfish__exec_temporary__.document,window.__garfish__exec_temporary__.addEventListener,window.__garfish__exec_temporary__.removeEventListener,window.__garfish__exec_temporary__.MutationObserver,window.__garfish__exec_temporary__.MouseEvent,window.__garfish__exec_temporary__.localStorage,window.__garfish__exec_temporary__.sessionStorage,window.__garfish__exec_temporary__.__GARFISH_SANDBOX_ENV_VAR__);"
+    // ]
     const evalInfo = [
       `;(function(${keys.join(',')}){${useStrict ? '"use strict";' : ''}`,
       `\n}).call(window.${contextKey},${values.join(',')});`,
     ];
+    // 拼接最终的代码，格式如下：
+    // ;(function(${keys.join(',')}){
+    //    ${useStrict ? '"use strict";' : ''}
+    //    with(window) {;codeRef.code}
+    // }).call(window.${contextKey},${values.join(',')});
+    console.log(3333, nativeWindow)
     const internalizeString = internFunc(evalInfo[0] + code + evalInfo[1]);
     // (0, eval) This expression makes the eval under the global scope
+    // 该表达式会让eval在global域下执行
     (0, eval)(internalizeString);
   } catch (e) {
     throw e;

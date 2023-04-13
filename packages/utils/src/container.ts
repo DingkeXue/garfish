@@ -28,6 +28,11 @@ function asyncNodeAttribute(from: Element, to: Element) {
 
 export const appContainerId = 'garfish_app_for';
 
+/**
+ * 创建子应用根容器
+ * @param appInfo 
+ * @returns 
+ */
 export function createAppContainer(appInfo: interfaces.AppInfo) {
   // Create a temporary node, which is destroyed by the module itself
   let htmlNode: HTMLDivElement | HTMLHtmlElement =

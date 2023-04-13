@@ -3,6 +3,9 @@ interface Defer {
   reject: (reason?: any) => void;
 }
 
+/**
+ * esm Queue队列
+ */
 export class Queue {
   private fx: Array<Function> = [];
   private init = true;
@@ -17,6 +20,7 @@ export class Queue {
         this.finishDefers.forEach((d) => d.resolve());
         this.finishDefers.clear();
       } else {
+        // 执行第一个esm注册的函数
         const fn = this.fx.shift();
         if (fn) {
           fn(() => {
@@ -28,11 +32,16 @@ export class Queue {
     }
   }
 
+  /**
+   * 添加esm
+   * @param fn 
+   */
   add(fn: (next: () => void) => void) {
     this.fx.push(fn);
     if (this.init) {
       this.lock = false;
       this.init = false;
+      // 添加后执行
       this.next();
     }
   }

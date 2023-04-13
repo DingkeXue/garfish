@@ -25,6 +25,10 @@ export const routerChange = (hook: RouterChange) => {
   RouterSet('routerChange', hook);
 };
 
+/**
+ * 遍历出未注册的子应用&注册子应用
+ * @param Apps 子应用列表
+ */
 export const registerRouter = (Apps: Array<interfaces.AppInfo>) => {
   const unregisterApps = Apps.filter(
     (app) => !RouterConfig.apps.some((item) => app.name === item.name),
@@ -33,6 +37,7 @@ export const registerRouter = (Apps: Array<interfaces.AppInfo>) => {
 };
 
 /**
+ * 监听路由变化
  * 1.注册子应用
  * 2.对应子应用激活，触发激活回调
  * @param Options
@@ -49,7 +54,7 @@ export const listenRouterAndReDirect = ({
   // 注册子应用、注册激活、销毁钩子
   registerRouter(apps);
 
-  // 初始化信息
+  // 初始化信息 （与RouterConfig合并参数）
   setRouterConfig({
     basename,
     autoRefreshApp,

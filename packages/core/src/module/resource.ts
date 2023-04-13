@@ -8,6 +8,13 @@ import type {
 import { AppInfo } from './app';
 
 // Fetch `script`, `link` and `module meta` elements
+/**
+ * 拉取`script`, `link` and `module meta` elements
+ * @param appName 应用名
+ * @param loader 加载器
+ * @param entryManager 
+ * @returns 
+ */
 function fetchStaticResources(
   appName: string,
   loader: Loader,
@@ -130,19 +137,28 @@ function fetchStaticResources(
   );
 }
 
+/**
+ * 加载子应用资源入口，资源加载分为两种类型：1.html 2.js资源
+ * @param loader 加载器
+ * @param appInfo 应用信息
+ * @returns 
+ */
 export async function processAppResources(loader: Loader, appInfo: AppInfo) {
   let isHtmlMode: Boolean = false,
     fakeEntryManager;
   const resources: any = { js: [], link: [], modules: [] }; // Default resources
   assert(appInfo.entry, `[${appInfo.name}] Entry is not specified.`);
+  // 会根据主应用到入口地址（entry）判断是什么类型的资源
   const { resourceManager: entryManager } = await loader.load({
     scope: appInfo.name,
     url: transformUrl(location.href, appInfo.entry),
   });
 
+  // 根据不同类型加载对应资源（目前只有 html | js）
   // Html entry
   if (entryManager instanceof loader.TemplateManager) {
     isHtmlMode = true;
+    // 加载html资源
     const [js, link, modules] = await fetchStaticResources(
       appInfo.name,
       loader,

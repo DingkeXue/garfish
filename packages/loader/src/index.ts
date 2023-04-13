@@ -142,12 +142,17 @@ export class Loader {
   }
 
   // Unable to know the final data type, so through "generics"
+  /**
+   * 加载子应用资源
+   * @param { Manager } 配置项 
+   * @returns 
+   */
   async load<T extends Manager>({
     scope,
-    url,
-    isRemoteModule = false,
-    crossOrigin = 'anonymous',
-    defaultContentType = '',
+    url, // 资源地址
+    isRemoteModule = false, // 是否时esm
+    crossOrigin = 'anonymous', // crossOrigin类型
+    defaultContentType = '',// 资源类型
   }: {
     scope: string;
     url: string;
@@ -157,6 +162,7 @@ export class Loader {
   }): Promise<LoadedHookArgs<T>['value']> {
     const { options, loadingList, cacheStore } = this;
 
+    // 是否命中缓存
     const res = loadingList[url];
     // 增加 scope 作为缓存区分，相同 scope 的 loader 才做缓存
     // 否则可能出现，url 相同，不同子应用实例的共享同一 entryManager，在多个子应用同时 mount 时，在 vm sandbox 中会对 entryManager 的 document 进行赋值(app.entryManager.DOMApis.document = sandbox.global.document)
@@ -176,6 +182,7 @@ export class Loader {
       );
     }
 
+    // 如果命中了缓存，直接返回资源
     if (appCacheContainer.has(url)) {
       // When there is a real network request, some network io is consumed,
       // so we need to simulate the network io here to ensure that the timing of the request is correct when the cache timing is hit.
@@ -195,21 +202,31 @@ export class Loader {
       }
     }
 
+    // 未命中缓存，加载资源
+    // 合并参数
     const requestConfig = mergeConfig(this, url);
     // Tells browsers to include credentials in both same- and cross-origin requests, and always use any credentials sent back in responses.
     requestConfig.credentials = CrossOriginCredentials[crossOrigin];
+    // 触发 beforeLoad 钩子函数（⚠️注意：只有真正发起请求的时候才会触发该钩子函数）
     const resOpts = this.hooks.lifecycle.beforeLoad.emit({
       url,
       scope,
       requestConfig,
     });
 
+    // 获取请求方法
     const request = getRequest(this.hooks.lifecycle.fetch);
+    // 请求数据
     const loadRes = request(resOpts.url, resOpts.requestConfig)
       .then(({ code, size, result, type }) => {
         let managerCtor,
           fileType: FileTypes | '' = '';
 
+        // 判断资源类型，初始化不同的资源加载器
+        // 1.远程模块（esm）
+        // 2.html模版
+        // 3.js资源
+        // 4.css资源
         if (isRemoteModule) {
           fileType = FileTypes.module;
           managerCtor = this.ModuleManager;
@@ -238,12 +255,14 @@ export class Loader {
         }
 
         // Use result.url, resources may be redirected
+        // 实例化资源加载器
         const resourceManager: Manager | null = managerCtor
           ? new managerCtor(code, result.url)
           : null;
 
         // The results will be cached this time.
         // So, you can transform the request result.
+        // 触发 loaded 生命周期钩子
         const data = this.hooks.lifecycle.loaded.emit({
           result,
           value: {
@@ -257,6 +276,7 @@ export class Loader {
           },
         });
 
+        // 缓存数据
         fileType && appCacheContainer.set(url, data.value, fileType);
         return copyResult(data.value as any);
       })

@@ -43,6 +43,12 @@ export function find(arr: Array<Function>, func: Function) {
   return null;
 }
 
+/**
+ * 获取路由路径
+ * @param basename appInfo.basename
+ * @param pathname location.pathname
+ * @returns 去掉basename后的路径
+ */
 export function getPath(basename: string = '/', pathname?: string) {
   if (basename === '/' || basename === '') {
     return pathname || location.pathname;
@@ -54,6 +60,11 @@ export function getPath(basename: string = '/', pathname?: string) {
   }
 }
 
+/**
+ * 获取子应用根路径（appInfo.basename+appInfo.activeWhen）
+ * @param appInfo 
+ * @returns 
+ */
 export function getAppRootPath(appInfo: interfaces.AppInfo) {
   const path = getPath(appInfo.basename, location.pathname);
   let appRootPath = appInfo.basename === '/' ? '' : (appInfo.basename || '');

@@ -58,6 +58,9 @@ const addProxyWindowType = (module: Window, parentModule: Window) => {
   return module;
 };
 
+/**
+ * Sandbox 类
+ */
 export class Sandbox {
   public id = id++;
   public type = 'vm';
@@ -82,8 +85,13 @@ export class Sandbox {
   private optimizeCode = ''; // To optimize the with statement
   private envVariable = '__GARFISH_SANDBOX_ENV_VAR__';
 
+  /**
+   * 构造函数
+   * @param options 配置项
+   */
   constructor(options: SandboxOptions) {
     // Default sandbox config
+    // 默认配置
     const defaultOptions: SandboxOptions = {
       baseUrl: '',
       namespace: '',
@@ -96,13 +104,17 @@ export class Sandbox {
       protectVariable: () => [],
       insulationVariable: () => [],
     };
+    // 合并配置，生成最终options
     this.options = isPlainObject(options)
       ? deepMerge(defaultOptions, options)
       : defaultOptions;
 
     const { loaderOptions, protectVariable, insulationVariable } = this.options;
+    // 初始化loader
     this.loader = new Loader(loaderOptions);
+    // 被保护的变量对象
     this.isProtectVariable = makeMap(protectVariable?.() || []);
+    //被污染的变量对象
     this.isInsulationVariable = makeMap(insulationVariable?.() || []);
 
     this.replaceGlobalVariables = {
@@ -112,18 +124,26 @@ export class Sandbox {
       overrideList: {},
     };
     // Inject Global capture
+    // 注入全局捕获
     makeElInjector(this.options);
     // The default startup sandbox
+    // 启动sandbox
     this.start();
+    // 记录当前vm
     sandboxMap.set(this);
   }
 
+  /**
+   * 启动sandbox
+   */
   start() {
     this.closed = false;
     this.replaceGlobalVariables = this.getModuleData();
     const { createdList, overrideList } = this.replaceGlobalVariables;
+    // 创建被代理的全局global对象
     this.global = this.createProxyWindow(Object.keys(overrideList));
 
+    // 如果overrideList存在，将其值复制给全局变量
     if (overrideList && this.global) {
       for (const key in overrideList) {
         this.global[key] = overrideList[key];
@@ -135,10 +155,18 @@ export class Sandbox {
     if (!this.options.disableWith) {
       this.optimizeCode = this.optimizeGlobalMethod();
     }
+    // 完成初始化
     this.initComplete = true;
+    // 触发stared生命周期
     this.hooks.lifecycle.stared.emit(this.global);
   }
 
+  /**
+   * 关闭vm
+   * 1.重置各种数据和变量
+   * 2.触发closed生命周期hooks
+   * @returns 
+   */
   close() {
     if (this.closed) return;
     this.clearEffects();
@@ -161,13 +189,20 @@ export class Sandbox {
     this.start();
   }
 
+  /**
+   * 创建代理全局window对象
+   * @param moduleKeys 需要被替换的key数组
+   * @returns 
+   */
   createProxyWindow(moduleKeys: Array<string> = []) {
+    // 生成fakeWindow
     const fakeWindow = createFakeObject(
       window,
       this.isInsulationVariable,
       makeMap(moduleKeys),
     );
 
+    // 对象基础的Handlers
     const baseHandlers = {
       get: createGetter(this),
       set: createSetter(this),
@@ -178,6 +213,7 @@ export class Sandbox {
       },
     };
 
+    // 父级Handlers
     const parentHandlers = {
       ...baseHandlers,
       has: createHas(this),
@@ -274,6 +310,14 @@ export class Sandbox {
     return code;
   }
 
+  /**
+   * 创建代码执行时的params
+   * 1.入参的window替换为this.global
+   * 2.使用with拼接代码
+   * @param codeRef 
+   * @param env 
+   * @returns 
+   */
   createExecParams(codeRef: { code: string }, env: Record<string, any>) {
     const { disableWith } = this.options;
     const { prepareList, overrideList } = this.replaceGlobalVariables;
@@ -321,6 +365,13 @@ export class Sandbox {
     throw e;
   }
 
+  /**
+   * 执行script代码
+   * @param { String } code 被执行的代码
+   * @param { Map }env 环境变量
+   * @param { String } url code地址
+   * @param interfaces.ExecScriptOptions options 配置项
+   */
   execScript(
     code: string,
     env = {},
@@ -344,7 +395,10 @@ export class Sandbox {
 
     try {
       const params = this.createExecParams(codeRef, env);
+      // 拼接sourceURL
       codeRef.code += `\n${url ? `//# sourceURL=${url}\n` : ''}`;
+      // 执行code
+      console.log(11111, 'execScript')
       evalWithEnv(codeRef.code, params, this.global);
     } catch (e) {
       this.processExecError(e, url, env, options);

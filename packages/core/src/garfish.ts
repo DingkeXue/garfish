@@ -36,7 +36,8 @@ export class Garfish extends EventEmitter2 {
   public version = __VERSION__;
   public flag = __GARFISH_FLAG__; // A unique identifier
   public loader = new Loader();
-  public hooks = globalLifecycle();
+  // 初始化钩子 beforeBootstrap｜bootstrap｜beforeRegisterApp｜registerApp｜beforeLoad｜afterLoad｜errorLoadApp
+  public hooks = globalLifecycle(); 
   public channel = new EventEmitter2();
   public options = createDefaultOptions();
   public externals: Record<string, any> = {};
@@ -51,6 +52,13 @@ export class Garfish extends EventEmitter2 {
     return (this.options && this.options.props) || DEFAULT_PROPS.get(this);
   }
 
+  /**
+   * 构造函数
+   * @param options 参数
+   * {
+      plugins: [GarfishRouter(), GarfishBrowserVm(), GarfishBrowserSnapshot()],
+    }
+   */
   constructor(options: interfaces.Options) {
     super();
     this.setOptions(options);
@@ -62,6 +70,11 @@ export class Garfish extends EventEmitter2 {
     this.usePlugin(GarfishLogger());
   }
 
+  /**
+   * 设置参数
+   * @param options 
+   * @returns 
+   */
   setOptions(options: Partial<interfaces.Options>) {
     assert(!this.running, 'Garfish is running, can`t set options');
     if (isPlainObject(options)) {
@@ -75,19 +88,36 @@ export class Garfish extends EventEmitter2 {
     return new PluginSystem<ReturnType<T>>(hooks);
   }
 
+  /**
+   * 注册插件
+   * @param plugin 插件
+   * @param args 插件参数
+   * @returns 
+   * 插件格式：
+   * return function (GarfishInstance: interfaces.Garfish): interfaces.Plugin {
+   *   return {
+   *    name: 'garfish-router',
+   *    version: '1.2.1',
+   *     // ...
+   *   };
+   * };
+   */
   usePlugin(
     plugin: (context: Garfish) => interfaces.Plugin,
     ...args: Array<any>
   ) {
     assert(!this.running, 'Cannot register plugin after Garfish is started.');
     assert(typeof plugin === 'function', 'Plugin must be a function.');
+    // 将实例作为入参传给参数
     args.unshift(this);
     const pluginConfig = plugin.apply(null, args) as interfaces.Plugin;
     assert(pluginConfig.name, 'The plugin must have a name.');
 
+    // 如果插件没有被注册过，注册到plugins中，key: name, value: pluginConfig
     if (!this.plugins[pluginConfig.name]) {
       this.plugins[pluginConfig.name] = pluginConfig;
       // Register hooks, Compatible with the old api
+      // 调用hooks上的usePlugin方法注册插件（将插件里的钩子add到对应的listener里面）
       this.hooks.usePlugin(pluginConfig);
     } else if (__DEV__) {
       warn('Please do not register the plugin repeatedly.');
@@ -95,7 +125,16 @@ export class Garfish extends EventEmitter2 {
     return this;
   }
 
+  /**
+   * 主应用注册子应用调用的方法
+   * 1.判断是否已经在运行中了
+   * 2.合并参数
+   * 3.注册插件
+   * @param options 配置对象
+   * @returns 
+   */
   run(options: interfaces.Options = {}) {
+    // 如果已经在运行中了，直接返回
     if (this.running) {
       if (__DEV__) {
         warn('Garfish is already running now, Cannot run Garfish repeatedly.');
@@ -103,25 +142,44 @@ export class Garfish extends EventEmitter2 {
       return this;
     }
 
+    // 合并参数
     this.setOptions(options);
     // Register plugins
+    // 注册插件
     options.plugins?.forEach((plugin) => this.usePlugin(plugin));
     // Put the lifecycle plugin at the end, so that you can get the changes of other plugins
+    // 注册lifecycle插件
     this.usePlugin(GarfishOptionsLife(this.options, 'global-lifecycle'));
 
     // Emit hooks and register apps
+    // 触发beforeBootstrap hooks 还不太清楚干什么
     this.hooks.lifecycle.beforeBootstrap.emit(this.options);
+    // 注册app
     this.registerApp(this.options.apps || []);
     this.running = true;
+    // 触发bootstrap hooks
     this.hooks.lifecycle.bootstrap.emit(this.options);
     return this;
   }
 
+  /**
+   * 注册子应用
+   * 1.触发hooks上beforeRegisterApp的方法
+   * @param list 子应用数组
+   * [{
+      name: 'react',
+      activeWhen: '/react',
+      entry: 'http://localhost:3000', // html入口
+    }]
+   * @returns 
+   */
   registerApp(list: interfaces.AppInfo | Array<interfaces.AppInfo>) {
     const currentAdds = {};
+    // 触发hooks上beforeRegisterApp的方法
     this.hooks.lifecycle.beforeRegisterApp.emit(list);
     if (!Array.isArray(list)) list = [list];
 
+    // 依次将子应用加入到this.appInfos对象中key: name, value: appInfo
     for (const appInfo of list) {
       assert(appInfo.name, 'Miss app.name.');
       if (!this.appInfos[appInfo.name]) {
@@ -135,6 +193,7 @@ export class Garfish extends EventEmitter2 {
         warn(`The "${appInfo.name}" app is already registered.`);
       }
     }
+    // 触发registerApp hooks
     this.hooks.lifecycle.registerApp.emit(currentAdds);
     return this;
   }
@@ -155,14 +214,28 @@ export class Garfish extends EventEmitter2 {
     return this;
   }
 
+  /**
+   * 加载应用
+   * @param appName 应用名
+   * @param options 应用配置
+   * {
+            cache,
+            basename: rootPath,
+            entry: appInfo.entry,
+            domGetter: appInfo.domGetter,
+          }
+   * @returns 
+   */
   loadApp(
     appName: string,
     options?: Partial<Omit<interfaces.AppInfo, 'name'>>,
   ): Promise<interfaces.App | null> {
     assert(appName, 'Miss appName.');
 
+    // 生成最终的应用信息
     let appInfo = generateAppOptions(appName, this, options);
 
+    // 异步加载应用
     const asyncLoadProcess = async () => {
       // Return not undefined type data directly to end loading
       const stop = await this.hooks.lifecycle.beforeLoad.emit(appInfo);
@@ -185,15 +258,18 @@ export class Garfish extends EventEmitter2 {
       let appInstance: interfaces.App | null = null;
       const cacheApp = this.cacheApps[appName];
 
+      // 如果开启了缓存且命中了缓存，走缓存策略
       if (appInfo.cache && cacheApp) {
         appInstance = cacheApp;
-      } else {
+      } else { // 否则走挂载逻辑
         try {
+          // 加载目标应用的所有资源（资源类型：html|js）
           const [manager, resources, isHtmlMode] = await processAppResources(
             this.loader,
             appInfo,
           );
 
+          // 根据目标应用的所有资源和配置信息，初始化app实例
           appInstance = new App(
             this,
             appInfo,

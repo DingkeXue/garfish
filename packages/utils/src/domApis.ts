@@ -49,6 +49,9 @@ function attributesString(attributes: Node['attributes']) {
   }, '');
 }
 
+/**
+ * DOM元素相关API
+ */
 export class DOMApis {
   public document: Document;
 

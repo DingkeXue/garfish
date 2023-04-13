@@ -64,15 +64,16 @@ export function GarfishCssScope(options: CssScopeOptions = {}) {
         if (!supportWasm) return;
         // When preloading, parse out ast in advance
         processPreloadManager(Garfish.loader);
-
+        
         // rewrite transform method
         const proto = Garfish.loader.StyleManager.prototype;
         const originTransform = proto.transformCode;
         if (protoCache.has(proto)) return;
         protoCache.add(proto);
-
+        
         proto.transformCode = function (code: string) {
           const { appName, rootElId } = this.scopeData || {};
+          console.log('css-module-start---->', appName, rootElId)
           if (
             !code ||
             !rootElId ||

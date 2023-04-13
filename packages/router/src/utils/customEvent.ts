@@ -1,5 +1,9 @@
 // copy from https://github.com/webmodules/custom-event
 
+/**
+ * 创建自定义事件函数
+ * 兼容不同的IE版本
+ */
 const NativeCustomEvent =
   typeof global !== 'undefined' ? (global as any)?.CustomEvent : null;
 

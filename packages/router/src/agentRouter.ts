@@ -19,6 +19,7 @@ export const normalAgent = () => {
     });
   };
 
+  // 重写window.history pushState|replaceState方法
   if (!window[__GARFISH_ROUTER_FLAG__]) {
     // Listen for pushState and replaceState, call linkTo, processing, listen back
     // Rewrite the history API method, triggering events in the call
@@ -109,6 +110,9 @@ export const normalAgent = () => {
   addRouterListener();
 };
 
+/**
+ * 初始化路由跳转
+ */
 export const initRedirect = () => {
   linkTo({
     toRouterInfo: {

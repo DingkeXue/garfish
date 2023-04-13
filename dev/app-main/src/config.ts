@@ -81,8 +81,8 @@ let defaultConfig: RunInfo = {
 
   // 插件列表
   plugins: [
-    GarfishEsModule(),
-    // GarfishCssScope(),
+    // GarfishEsModule(),
+    GarfishCssScope(),
   ],
 
   // 开始加载子应用前触发该函数，支持异步函数，可以在该函数中执行异步操作，

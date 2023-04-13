@@ -286,6 +286,7 @@ export class App {
   }
 
   // `vm sandbox` can override this method
+  // 真正执行代码的方法（沙箱）
   runCode(
     code: string,
     env: Record<string, any>,
@@ -293,6 +294,7 @@ export class App {
     options?: interfaces.ExecScriptOptions,
   ) {
     // If the node is an es module, use native esmModule
+    // 如果节点是es module，使用原生的esmModule
     if (options && options.isModule) {
       this.esmQueue.add(async (next) => {
         await this.esModuleLoader.load(
@@ -318,6 +320,7 @@ export class App {
         options?.defer,
         options?.originScript,
       );
+      // 代码+sourceMap
       code += url ? `\n//# sourceURL=${url}\n` : '';
       if (!hasOwn(env, 'window')) {
         env = {
@@ -331,6 +334,7 @@ export class App {
   }
 
   async show() {
+    console.log(22222, 'show')
     this.active = true;
     const { display, mounted, provider } = this;
     if (display) return false;
@@ -366,8 +370,14 @@ export class App {
     return true;
   }
 
+  /**
+   * 挂载子应用
+   * @returns 
+   */
   async mount() {
+    console.log(22222, 'mount')
     if (!this.canMount()) return false;
+    // 触发 beforeMount 钩子
     this.hooks.lifecycle.beforeMount.emit(this.appInfo, this, false);
 
     this.active = true;
@@ -378,6 +388,7 @@ export class App {
       // so we should initialize async registration while mounting
       this.initAsyncProviderRegistration();
       // add container and compile js with cjs
+      // 添加container、编译js
       const { asyncScripts, deferScripts } =
         await this.compileAndRenderContainer();
       if (!this.stopMountAndClearEffect()) return false;
@@ -488,6 +499,7 @@ export class App {
                 noEntry = toBoolean(this.isNoEntryScript(targetUrl));
               }
             }
+
             this.execScript(jsManager.scriptCode, {}, targetUrl, {
               noEntry,
               defer: type === 'defer',
@@ -598,6 +610,7 @@ export class App {
 
   // Create a container node and add in the document flow
   // domGetter Have been dealing with
+  // 创建一个子应用的跟容器，然后挂在到子应用提供的挂载点上
   private async addContainer() {
     // Initialize the mount point, support domGetter as promise, is advantageous for the compatibility
     const wrapperNode = await getRenderNode(this.appInfo.domGetter);
@@ -618,6 +631,8 @@ export class App {
     // To append to the document flow, recursive again create the contents of the HTML or execute the script
     await this.addContainer();
 
+    // 自定义渲染对象，根据不同类型，执行对应函数
+    // 支持类型：meta img video audio iframe body head script link style
     const customRenderer: Parameters<typeof entryManager.createElements>[0] = {
       meta: () => null,
 
@@ -666,7 +681,10 @@ export class App {
         return DOMApis.createElement(node);
       },
 
+      // script标签节点
       script: (node) => {
+        // script节点mimetype
+        console.log(1111, 'run---script')
         const mimeType = entryManager.findAttributeValue(node, 'type');
         const isModule = mimeType === 'module';
 
@@ -676,16 +694,20 @@ export class App {
             return DOMApis.createElement(node);
           }
         }
+        // 遍历出同步&同源的js加载器
         const jsManager = resources.js.find((manager) => {
           return !manager.async ? manager.isSameOrigin(node) : false;
         });
 
         if (jsManager) {
+          // 延迟加载
           if (jsManager.defer) {
             this.deferNodeMap.set(jsManager, node);
           } else {
+            // 同步加载
             const { url, scriptCode } = jsManager;
             const mockOriginScript = document.createElement('script');
+            // 赋值属性
             node.attributes.forEach((attribute) => {
               if (attribute.key) {
                 mockOriginScript.setAttribute(
@@ -696,6 +718,7 @@ export class App {
             });
 
             const targetUrl = url || this.appInfo.entry;
+            // 执行js代码
             this.execScript(scriptCode, {}, targetUrl, {
               isModule,
               async: false,
@@ -764,6 +787,7 @@ export class App {
     };
 
     // Render dom tree and append to document
+    // 渲染节点树并挂载到htmlNode上
     entryManager.createElements(customRenderer, htmlNode, (node, parent) => {
       // Trigger a custom render hook
       return this.hooks.lifecycle.customRender.emit({

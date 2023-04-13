@@ -7,6 +7,11 @@ import {
 } from '@garfish/hooks';
 import { interfaces } from './interface';
 
+/**
+ * Garfish类上的hooks属性
+ * 
+ * @returns 
+ */
 // prettier-ignore
 export function globalLifecycle() {
   return new PluginSystem({
@@ -14,7 +19,9 @@ export function globalLifecycle() {
     bootstrap: new SyncHook<[interfaces.Options], void>(),
     beforeRegisterApp: new SyncHook<[interfaces.AppInfo | Array<interfaces.AppInfo>], void>(),
     registerApp: new SyncHook<[Record<string, interfaces.AppInfo>], void>(),
+    // load前 同步
     beforeLoad: new AsyncHook<[interfaces.AppInfo]>(),
+    // load后 同步
     afterLoad: new AsyncHook<[interfaces.AppInfo, interfaces.App | null]>(),
     errorLoadApp: new SyncHook<[Error, interfaces.AppInfo], void>(),
   });

@@ -84,6 +84,17 @@ export function isInIframe() {
 }
 
 // Copy "window" and "document"
+/**
+ * 创建fakeWindow
+ * 1.创建一个fakeWindow对象
+ * 2.获取target对象上所有自身的属性&原型链上的属性
+ * 3.修改prop属性的descriptor并赋值给fakeWindow
+ * 4.返回fakeWindow
+ * @param { Window } target window
+ * @param { Function } filter 是否被隔离
+ * @param { Function } isWritable 是否可写
+ * @returns 
+ */
 export function createFakeObject(
   target: Record<PropertyKey, any>,
   filter?: (key: PropertyKey) => boolean,
@@ -92,27 +103,37 @@ export function createFakeObject(
   const fakeObject = {};
   const propertyMap = {};
   const storageBox = Object.create(null); // Store changed value
+  // 获取目标对象所有的属性名
   const propertyNames = Object.getOwnPropertyNames(target);
+  // 处理target属性和fakeObject
   const def = (p: string) => {
+    // 后去target对象当前属性的descriptor
     const descriptor = Object.getOwnPropertyDescriptor(target, p);
 
+    // 如果当前属性可配置
     if (descriptor?.configurable) {
       const hasGetter = hasOwn(descriptor, 'get');
       const hasSetter = hasOwn(descriptor, 'set');
       const canWritable = typeof isWritable === 'function' && isWritable(p);
 
+      // 处理getter
       if (hasGetter) {
         // prettier-ignore
+        // 如果storageBox中已经存在，直接使用；否则用target[p]
         descriptor.get = () => hasOwn(storageBox, p)
           ? storageBox[p]
           : target[p];
       }
+      // 处理setter
       if (hasSetter) {
+        // 只给storageBox设置值
         descriptor.set = (val) => {
           storageBox[p] = val;
           return true;
         };
       }
+
+      // 把当前属性搞成可写的
       if (canWritable) {
         if (descriptor.writable === false) {
           descriptor.writable = true;
@@ -123,14 +144,17 @@ export function createFakeObject(
           };
         }
       }
+      // 给fakeObject设置当前属性和属性描述符（冻结描述符）
       Object.defineProperty(fakeObject, p, Object.freeze(descriptor));
     }
   };
+  // 遍历属性名并
   propertyNames.forEach((p) => {
     propertyMap[p] = true;
     typeof filter === 'function' ? !filter(p) && def(p) : def(p);
   });
   // "prop" maybe in prototype chain
+  // 处理原型链上的属性
   for (const prop in target) {
     !propertyMap[prop] && def(prop);
   }

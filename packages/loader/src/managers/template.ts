@@ -13,16 +13,26 @@ type CommonRender = (
   parent: Element,
 ) => { customElement?: Element | null };
 
+/**
+ * html模版加载器
+ */
 export class TemplateManager {
   public url: string | undefined;
   public DOMApis = new DOMApis();
   public astTree: Array<Node> = [];
   private pretreatmentStore: Record<string, Node[]> = {};
 
+  /**
+   * 构造函数
+   * 1.解析html字符串 ===> [astTree, collectionEls]
+   * @param template html字符串代码
+   * @param url 资源地址
+   */
   constructor(template: string, url?: string) {
     // The url is only base url, it may also be a js resource address.
     this.url = url;
     if (template) {
+      // 解析html
       const [astTree, collectionEls] = templateParse(template, [
         'meta',
         'link',
@@ -31,6 +41,7 @@ export class TemplateManager {
       ]);
       this.astTree = astTree;
       this.pretreatmentStore = collectionEls;
+      console.log('TemplateManager constructor---->', 'astTree:', astTree, 'collectionEls:', collectionEls)
     }
   }
 
@@ -64,6 +75,13 @@ export class TemplateManager {
   }
 
   // Render dom tree
+  /**
+   * 遍历html的AST生成最终的节点树
+   * @param renderer 内置渲染器
+   * @param parent 父级节点（创建出来的子应用挂载点）
+   * @param commonRender 自定义渲染器
+   * @returns 
+   */
   createElements(
     renderer: Renderer,
     parent: Element,
@@ -83,6 +101,7 @@ export class TemplateManager {
           el = commonRender(node, parent)?.customElement;
         }
         // If the general renderer does not return a result, need to use the internal renderer
+        // 如果DOMApis.createTextNode 和 commonRender都没有匹配，使用 renderer 渲染器提供的方法创建节点
         if (!el) {
           if (renderer[tagName]) {
             el = renderer[tagName](node);

@@ -11,12 +11,21 @@ import {
 } from './config';
 
 // Inspection application is activated
+/**
+ * 判断子应用是否激活
+ * @param activeWhen appInfo.activeWhen
+ * @param path 路由的路径
+ * @returns boolean
+ */
 const hasActive = (activeWhen: any, path: string) => {
   if (typeof activeWhen === 'string') {
+    // 将activeWhen处理成/xx形式
     if (activeWhen[0] !== '/') activeWhen = `/${activeWhen}`;
     // Set to the root path must be congruent
+    // activeWhen为根路径且等于当前path，返回true
     if (activeWhen === '/' && path === activeWhen) return true;
 
+    // 对比每一条路径
     const activeWhenArr = activeWhen.split('/');
     const pathArr = path.split('/');
     let flag: boolean = true;
@@ -58,6 +67,7 @@ export const linkTo = async ({
     autoRefreshApp,
   } = RouterConfig;
 
+  // 遍历出当前没有被激活的子应用
   const deactiveApps = current!.matched.filter(
     (appInfo) =>
       !hasActive(
@@ -67,6 +77,7 @@ export const linkTo = async ({
   );
 
   // Activate the corresponding application
+  // 找出路由匹配的子应用
   const activeApps = apps.filter((appInfo) => {
     return hasActive(
       appInfo.activeWhen,
@@ -74,6 +85,7 @@ export const linkTo = async ({
     );
   });
 
+  // 找出需要被激活的应用：路径匹配但名字没匹配上的应用
   const needToActive = activeApps.filter(({ name }) => {
     return !current!.matched.some(({ name: cName }) => name === cName);
   });
@@ -89,9 +101,11 @@ export const linkTo = async ({
     matched: deactiveApps,
   };
 
+  // beforeEach全局钩子：路由跳转后，子应用挂载前钩子
   await toMiddleWare(to, from, beforeEach!);
 
   // Pause the current application of active state
+  // 卸载子应用
   if (current!.matched.length > 0) {
     await asyncForEach(
       deactiveApps,
@@ -123,6 +137,7 @@ export const linkTo = async ({
     callCapturedEventListeners(eventType);
   }
 
+  // 激活匹配路由的子应用
   await asyncForEach(needToActive, async (appInfo) => {
     // Function using matches character and routing using string matching characters
     const appRootPath = getAppRootPath(appInfo);
@@ -131,5 +146,6 @@ export const linkTo = async ({
 
   if (activeApps.length === 0 && notMatch) notMatch(location.pathname);
 
+  // afterEach全局钩子：路由跳转后，子应用挂载后钩子
   await toMiddleWare(to, from, afterEach!);
 };

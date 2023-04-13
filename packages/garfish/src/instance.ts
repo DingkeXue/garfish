@@ -15,10 +15,12 @@ declare global {
 function createContext(): Garfish {
   let fresh = false;
   // Existing garfish instance, direct return
+  // 如果Garfish实例存在，直接返回
   if (inBrowser() && window['__GARFISH__'] && window['Garfish']) {
     return window['Garfish'];
   }
 
+  // 初始化实例对象
   const GarfishInstance = new Garfish({
     plugins: [GarfishRouter(), GarfishBrowserVm(), GarfishBrowserSnapshot()],
   });
