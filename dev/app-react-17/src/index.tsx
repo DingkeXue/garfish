@@ -39,6 +39,7 @@ export const provider = reactBridge({
     _props = appInfo;
     return Promise.resolve(() => <RootComponent {...appInfo} />);
   },
+  cache: false,
   errorBoundary: (e: any) => <ErrorBoundary />,
 });
 
